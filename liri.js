@@ -1,26 +1,22 @@
 //require the node npm packages
 var fs = require("fs");
-var twitter = require("twitter");
+var Twitter = require("twitter");
 var spotify = require("spotify");
 var request = require("request");
-
+var inquirer = require("inquirer");
 
 //grabbing the twitter authentication details from keys.js file
 var keys = require("./keys.js");
 var twitterKeys = keys.twitterKeys;
 
 //twitter user-based authentication
-var client = new twitter({
+var client = new Twitter({
     consumer_key: twitterKeys.consumer_key,
     consumer_secret: twitterKeys.consumer_secret,
     access_token_key: twitterKeys.access_token_key,
     access_token_secret: twitterKeys.access_token_secret
 });
 
-//console.log(client);
-
-//grabbing the user command from the command line
-var commands = process.argv[2];
 
 //functions to execute based on user command
 var twitterID = "deepika_vikas";
@@ -54,59 +50,90 @@ function spotifySong(song) {
 }
 
 function movieDetails(movie) {
-	var movieQueryURL="http://www.omdbapi.com/?t=" + movie + "&y=&plot=short&r=json";
+    var movieQueryURL = "http://www.omdbapi.com/?t=" + movie + "&y=&plot=short&tomatoes=true&r=json";
     request(movieQueryURL, function(error, response, body) {
-        console.log("The movie's rating is: " + body);
+
+        console.log("Title: " + JSON.parse(body).Title);
+        console.log("Year: " + JSON.parse(body).Year);
+        console.log("IMDB Rating: " + JSON.parse(body).imdbRating);
+        console.log("Country of origin: " + JSON.parse(body).Country);
+        console.log("Language: " + JSON.parse(body).Language);
+        console.log("Plot: " + JSON.parse(body).Plot);
+        console.log("Actors: " + JSON.parse(body).Actors);
+        console.log("Rotten Tomatoes Rating:  " + JSON.parse(body).tomatoUserRating);
+        console.log("Rotten Tomatoes URL: " + JSON.parse(body).tomatoURL);
 
     });
 }
 
-fs.appendFile("log.txt","\n" + process.argv.slice(2));
 
-switch (commands) {
-    case "my-tweets":
-        {
-        	
-            myTweets();
-            break;
-        }
-    case "spotify-this-song":
-        {
-        	
-            var song = process.argv[3];
-            if (song === undefined) {
-                song = "The Sign by ace of base";
+inquirer.prompt([{
+    type: "list",
+    message: "What would you like to do today?",
+    choices: ["Check your tweets?", "Spotify a song", "Find details of a movie?", "Surprise me?!!"],
+    default: ["Check your tweets?"],
+    name: "commands"
+
+}]).then(function(user) {
+
+    fs.appendFile("log.txt", "\n" + user.commands[0]);
+
+    switch (user.commands) {
+        case "Check your tweets?":
+            {
+                myTweets();
+                break;
             }
-            spotifySong(song);
-            break;
-        }
-    case "movie-this":
-        {
-        	
-            var movie = process.argv[3];
-            if (movie === undefined) {
-                movie = "Mr.Nobody";
+        case "Spotify a song":
+            {
+                inquirer.prompt([{
+                    type: "input",
+                    message: "Enter a song: ",
+                    name: "songName",
+                    default: "The Sign by ace of base"
+                }]).then(function(song) {
+                    var song = song.songName;
+                    if(song===undefined){
+                        song="The Sign by ace of base";
+                    }
+                    spotifySong(song);
+                });
+
+                break;
             }
-            movieDetails(movie);
-            break;
-        }
-    case "do-what-it-says":
-        {
-        	
-        	fs.readFile("random.txt", "utf-8", function(err,data){
-        		if(err) throw err;
+        case "Find details of a movie?":
+             {
+                inquirer.prompt([{
+                    type: "input",
+                    message: "Enter a movie: ",
+                    name: "movieName"
+                }]).then(function(movie) {
+                    var movie = movie.movieName;
+                    if (movie === undefined) {
+                        movie = "Mr.Nobody";
+                    }   
+                    movieDetails(movie);
+                });
 
-        		data=data.split(",");
-        		if(data[0]==="spotify-this-song"){
-        			spotifySong(data[1]);
-        		}else if(data[0]==="my-tweets"){
-        			myTweets();
-        		}else if(data[0]==="movie-this"){
-        			movieDetails(data[1]);
-        		}
-        	})
-            break;
-        }
+                break;
+            }
+        case "Surprise me?!!":
+            {
 
+                fs.readFile("random.txt", "utf-8", function(err, data) {
+                    if (err) throw err;
 
-}
+                    data = data.split(",");
+                    if (data[0] === "Spotify a song") {
+                        spotifySong(data[1]);
+                    } else if (data[0] === "Check your tweets?") {
+                        myTweets();
+                    } else if (data[0] === "Find details of a movie?") {
+                        movieDetails(data[1]);
+                    }
+                })
+                break;
+            }
+    }
+});
+
